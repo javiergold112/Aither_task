@@ -1,0 +1,201 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgres"
+  url      = env("DATABASE_URL")
+}
+
+model OTPVerification {
+  id               Int      @id @default(autoincrement())
+  email            String   @unique @db.VarChar(80)
+  verificationCode String   @db.VarChar(10)
+  expirationDate   DateTime
+  hasVerified      Boolean  @default(false)
+}
+
+model User {
+  id        Int      @default(autoincrement())
+  userId    String   @id @default(uuid()) @db.VarChar(50)
+  username  String   @unique @db.VarChar(30)
+  email     String   @unique @db.VarChar(80)
+  password  String   @db.VarChar(255)
+  isDeleted Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile     Profile?     @relation("profile-to-users")
+  hashedTokes HashedTokes?
+  UsersRoles  UsersRoles[] @relation("usersrole-to-users")
+  SensorData  SensorData[]
+  blogs       Blog[]       @relation("blog-to-user")
+  BlogsRates  BlogsRates[] @relation("blogsRate-to-user")
+  BlogsLikes  BlogsLikes[] @relation("blogsLikes-to-user")
+  Comments    Comments[]   @relation("commets-to-user")
+
+  @@index([id])
+}
+
+model Profile {
+  userId    String    @id @unique @db.VarChar(50)
+  user      User      @relation(fields: [userId], references: [userId], onDelete: Cascade, onUpdate: Cascade, name: "profile-to-users")
+  firstname String?   @db.VarChar(50)
+  lastname  String?   @db.VarChar(50)
+  bio       String?   @db.VarChar(150)
+  avatar    String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  location  Location? @relation("location-to-profile")
+}
+
+model Location {
+  profileId String   @id @unique @db.VarChar(50)
+  profile   Profile  @relation(fields: [profileId], references: [userId], onDelete: Cascade, onUpdate: Cascade, name: "location-to-profile")
+  address   String?  @db.VarChar(100)
+  city      String?  @db.VarChar(30)
+  state     String?  @db.VarChar(30)
+  country   String?  @db.VarChar(30)
+  zipCode   String?  @db.VarChar(20)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model HashedTokes {
+  id        Int      @id @default(autoincrement())
+  userid    String   @unique @db.VarChar(50)
+  user      User     @relation(fields: [userid], references: [userId], onDelete: Cascade)
+  hashedRT  String
+  updatedAt DateTime @updatedAt
+}
+
+model Roles {
+  id          Int          @id @default(autoincrement())
+  name        String       @db.VarChar(20)
+  description String       @db.VarChar(100)
+  UsersRoles  UsersRoles[] @relation("usersrole-to-roles")
+}
+
+model UsersRoles {
+  id     Int    @id @default(autoincrement())
+  userId String @db.VarChar(50)
+  user   User   @relation(fields: [userId], references: [userId], onDelete: Cascade, onUpdate: Cascade, name: "usersrole-to-users")
+  roleId Int
+  roles  Roles  @relation(fields: [roleId], references: [id], onDelete: NoAction, onUpdate: Cascade, name: "usersrole-to-roles")
+
+  @@unique([userId, roleId])
+}
+
+model UploadedFiles {
+  id         Int      @id @default(autoincrement())
+  filename   String
+  mimetype   String
+  type       String
+  size       Int
+  url        String   @unique @db.Text
+  uploadDate DateTime @default(now()) @db.Date
+  updatedAt  DateTime @updatedAt
+}
+
+enum SensorDataStatus {
+  OPEN
+  CLOSED
+}
+
+model SensorData {
+  id          Int              @id @default(autoincrement())
+  userId      String           @db.VarChar(50)
+  user        User             @relation(fields: [userId], references: [userId])
+  sensorId    String           @db.VarChar(50)
+  deviceType  String           @db.VarChar(50)
+  location    String           @db.VarChar(50)
+  time        DateTime         @default(now())
+  sashHeight  Int
+  status      SensorDataStatus
+  temperature Float
+  humidity    Int
+}
+
+enum BlogStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Blog {
+  id          Int                  @default(autoincrement())
+  blogId      String               @id @default(uuid()) @db.VarChar(50)
+  authourId   String               @db.VarChar(50)
+  user        User                 @relation(fields: [authourId], references: [userId], onDelete: Cascade, onUpdate: Cascade, name: "blog-to-user")
+  title       String               @db.VarChar(150)
+  content     String               @db.Text
+  image       String               @db.Text
+  status      BlogStatus           @default(PUBLISHED)
+  publishedAt DateTime             @default(now()) @db.Date
+  updatedAt   DateTime             @updatedAt
+  averageRate Float                @default(0)
+  totalLikes  Int                  @default(0)
+  seoTitle    String?              @db.VarChar(150)
+  seoContent  String?              @db.VarChar(150)
+  categories  BlogCategoriesList[] @relation("blogsCate-to-blog")
+  rates       BlogsRates[]         @relation("blogsRate-to-blog")
+  likes       BlogsLikes[]         @relation("blogsLikes-to-blog")
+  Comments    Comments[]           @relation("commets-to-blog")
+
+  @@index([id])
+}
+
+model BlogsRates {
+  id     Int    @id @default(autoincrement())
+  userid String @db.VarChar(50)
+  user   User   @relation(fields: [userid], references: [userId], onDelete: Cascade, onUpdate: Cascade, name: "blogsRate-to-user")
+  blogId String @db.VarChar(50)
+  blog   Blog   @relation(fields: [blogId], references: [blogId], onDelete: Cascade, onUpdate: Cascade, name: "blogsRate-to-blog")
+  rate   Float
+
+  @@unique([blogId, userid])
+}
+
+model BlogsLikes {
+  id     Int    @id @default(autoincrement())
+  userid String @db.VarChar(50)
+  user   User   @relation(fields: [userid], references: [userId], onDelete: Cascade, onUpdate: Cascade, name: "blogsLikes-to-user")
+  blogId String @db.VarChar(50)
+  blog   Blog   @relation(fields: [blogId], references: [blogId], onDelete: Cascade, onUpdate: Cascade, name: "blogsLikes-to-blog")
+
+  @@unique([blogId, userid])
+}
+
+model BlogCategories {
+  id           Int                  @id @default(autoincrement())
+  name         String               @db.VarChar(50)
+  description  String               @db.VarChar(100)
+  categoryList BlogCategoriesList[] @relation("blogsCate-to-cate")
+}
+
+model BlogCategoriesList {
+  id       Int            @id @default(autoincrement())
+  blogId   String         @db.VarChar(50)
+  blog     Blog           @relation(fields: [blogId], references: [blogId], onDelete: Cascade, onUpdate: Cascade, name: "blogsCate-to-blog")
+  cateId   Int
+  category BlogCategories @relation(fields: [cateId], references: [id], onDelete: Cascade, onUpdate: Cascade, name: "blogsCate-to-cate")
+}
+
+model Comments {
+  id        Int        @default(autoincrement())
+  commentId String     @id @default(uuid()) @db.VarChar(50)
+  content   String     @db.Text
+  userId    String     @db.VarChar(50)
+  user      User       @relation(fields: [userId], references: [userId], onDelete: Cascade, onUpdate: Cascade, name: "commets-to-user")
+  blogId    String     @db.VarChar(50)
+  blog      Blog       @relation(fields: [blogId], references: [blogId], onDelete: Cascade, onUpdate: Cascade, name: "commets-to-blog")
+  parentId  String?    @db.VarChar(50)
+  parent    Comments?  @relation("CommentToParent", fields: [parentId], references: [commentId])
+  replies   Comments[] @relation("CommentToParent")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([userId])
+  @@index([blogId])
+  @@index([id])
+}
